@@ -128,13 +128,16 @@ function htz_curl($url=false, $header=false, $cookie=false, $referer=false, $pos
                       global $htz_usrag;
                       curl_setopt($ch, CURLOPT_USERAGENT, "$htz_usrag");
     }
+    global $htz_curl_cheatssl;
+    if ($htz_curl_cheatssl) {
+                      curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, false); // fail TODO :)
+                      curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false); // fail TODO :)
+    }
     // fix params
     curl_setopt($ch, CURLOPT_FOLLOWLOCATION, true);
     curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
     curl_setopt($ch, CURLOPT_TIMEOUT, 10);
     curl_setopt($ch, CURLOPT_MAXREDIRS, 10);
-    curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, false); // fail TODO :)
-    curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false); // fail TODO :)
 
   // exec
   $res = curl_exec($ch);
@@ -490,9 +493,5 @@ if (!empty($htz_update_domains)) {
     // Send pushover message (messageconstruct)
     notify_pushover($pushover_msg);
 }
-
-// Bugs:
-// empty line on pushover msg first
 // eof.
-
 ?>

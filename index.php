@@ -45,6 +45,11 @@ function htz_getip() {
     } else {
       htz_say(__FUNCTION__. ": $ipsvc is down or fails validation ($ip_test).", 0);
     }
+    if (empty($ip_ok)) {
+      // iterated through all the options, and didn't get a working ip.
+      // wan interface may be down, exit.
+      htz_say(__FUNCTION__. ": Couldn't detect your IP address, you may be off the network, or all ip services are failing.", 2);
+    }
   }
   htz_say(__FUNCTION__. ": IP service $ipsvc says $ip_ok you are.", 0);
   return $ip_ok;

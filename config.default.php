@@ -27,7 +27,7 @@ $htz_curl_cheatssl=false;
 // zone file(s) before modification attempt.
 $htz_data=__DIR__."/data";
 // You can set these too, using .data by default
-// you may want to disable serving the .data files on your webserver
+// you may want to disable serving the data/htz.* files on your webserver
 // should you be using this via the web.
 $htz_data_ip="$htz_data/htz.ip.data";
 // __DNSID__ and __DOMAIN__ are replaced with actual values.

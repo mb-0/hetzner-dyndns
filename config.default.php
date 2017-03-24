@@ -13,7 +13,7 @@ $htz_debug=true;
 $htz_quiet=false;
 
 // Hetzner username and password configuration
-$htz_user="<your_login_user_name";
+$htz_user="<your_login_user_name>";
 $htz_pass="<very_secret_password>";
 
 // SSL Cheat - this adds SSL_VERIFYHOST and SSL_VERIFYPEER

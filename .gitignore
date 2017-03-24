@@ -1,1 +1,4 @@
 config.php
+data/htz.*
+tests/*
+.DS_Store

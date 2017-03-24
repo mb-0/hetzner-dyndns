@@ -30,8 +30,8 @@ $htz_data=__DIR__."/data";
 // you may want to disable serving the .data files on your webserver
 // should you be using this via the web.
 $htz_data_ip="$htz_data/htz.ip.data";
-$htz_data_zone="$htz_data/htz.zone.__DNSID__.data"; // __DNSID__ is replaced with hetzner DNSID integer
-$htz_cookie_jar="$htz_data/htz.cookie.data";
+// __DNSID__ and __DOMAIN__ are replaced with actual values.
+$htz_data_zone="$htz_data/htz.zone-__DOMAIN__-__DNSID__.data";
 
 // The following configuration allows you to set
 // multiple domains and hosts to be updated in a single run.

@@ -4,7 +4,7 @@
 // You may want to create a copy of config.default.php to config.php and amend settings.
 
 // Local functions
-function htz_say($str,$code) {
+function htz_say($str,$code=0) {
   global $htz_quiet, $htz_debug;
   // handle newline breaks for apache-php fpm-fcgi cli and linux, darwin, windows.
   if (php_sapi_name() == "fpm-fcgi") { $s="<br>";
@@ -54,13 +54,36 @@ function htz_getip() {
   htz_say(__FUNCTION__. ": IP service $ipsvc says $ip_ok you are.", 0);
   return $ip_ok;
 }
+
+function htz_getlocation($str) {
+  // This function digs oauth location from response headers supplied and returns value to be used for future requests;
+  global $htz_loc;
+  if (preg_match_all("/Location: .*/",$str,$matches)) {
+      $rawloc=$matches[0][0];
+      $htz_loc=preg_replace("/Location: /", "", $rawloc);
+      $htz_loc=trim($htz_loc);
+      htz_say(__FUNCTION__. ": Location found: $htz_loc",0);
+      return $htz_loc;
+  } else {
+      return false;
+  }
+}
+function htz_getloginurl($url,$html) {
+  // This function digs out and concats a login URL.
+  $urlpiece=preg_replace('/\/oauth\/authorize.*/','',$url);
+  preg_match("/action=\".*\"/", $html[0], $match);	
+  $piece_a=preg_replace("/.*\//", "", $match[0]);
+  $piece_b=preg_replace("/\".*/", "", $piece_a);
+  $htz_loginurl=$urlpiece.'/'.$piece_b;
+  return $htz_loginurl;
+}
 function htz_validateip($ip) {
   if (!filter_var($ip, FILTER_VALIDATE_IP) === false) { return true; }
 }
 function htz_validatefile($file) {
   // this function attempts to create an empty file. returns false when it fails (write check this is really)
   if (!file_exists($file)) {
-      $fh = fopen($file, 'w') or htz_say(__FUNCTION__. ": Failed creating IP Data file $file", 2);
+      $fh = fopen($file, 'w') or htz_say(__FUNCTION__. ": Failed creating data file $file", 2);
       fclose($fh);
       htz_say(__FUNCTION__. ": File $file created.", 0);
   }
@@ -113,7 +136,7 @@ function htz_savenewip($ip) {
 }
 
 // Hetzner functions
-function htz_curl($url=false, $header=false, $cookie=false, $referer=false, $postdata=false, $httpheaders=false, $agent=false) {
+function htz_curl($url=false, $header=false, $cookie=false, $referer=false, $postdata=false, $httpheaders=false, $agent=false, $follow=true) {
   // General cURL wrapper to be paramed for actual needs.
   // Returns an array with [0]: response [1]: headers
   $ch = curl_init();
@@ -122,11 +145,12 @@ function htz_curl($url=false, $header=false, $cookie=false, $referer=false, $pos
     if ($header) {    curl_setopt($ch, CURLOPT_HEADER, true); }
     if ($referer) {   curl_setopt($ch, CURLOPT_REFERER, "$referer"); }
     if ($cookie)  {   curl_setopt($ch, CURLOPT_COOKIE, "$cookie");
-                      curl_setopt($ch, CURLOPT_COOKIEJAR, "php://memory");
-                      curl_setopt($ch, CURLOPT_COOKIEFILE, "php://memory");}
+    global $htz_data_cookies;
+                      curl_setopt($ch, CURLOPT_COOKIEJAR, $htz_data_cookies);
+                      curl_setopt($ch, CURLOPT_COOKIEFILE, $htz_data_cookies);}
     if ($postdata) {  curl_setopt($ch, CURLOPT_POST, 1);
                       curl_setopt($ch, CURLOPT_POSTFIELDS, "$postdata");}
-    if ($httpheaders) {curl_setopt($ch, CURLOPT_HTTPHEADER, "$httpheaders");}
+    if ($httpheaders) {curl_setopt($ch, CURLOPT_HTTPHEADER, $httpheaders);}
     if ($agent)       {
                       curl_setopt($ch, CURLOPT_USERAGENT, "$agent");
     } else {
@@ -135,11 +159,11 @@ function htz_curl($url=false, $header=false, $cookie=false, $referer=false, $pos
     }
     global $htz_curl_cheatssl;
     if ($htz_curl_cheatssl) {
-                      curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, false); // fail TODO :)
-                      curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false); // fail TODO :)
+                      curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, false);
+                      curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
     }
     // fix params
-    curl_setopt($ch, CURLOPT_FOLLOWLOCATION, true);
+    curl_setopt($ch, CURLOPT_FOLLOWLOCATION, $follow);
     curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
     curl_setopt($ch, CURLOPT_TIMEOUT, 10);
     curl_setopt($ch, CURLOPT_MAXREDIRS, 10);
@@ -152,7 +176,7 @@ function htz_curl($url=false, $header=false, $cookie=false, $referer=false, $pos
   $newheaders = substr($res, 0, $header_size);
   curl_close ($ch);
   unset($ch);
-  htz_say(__FUNCTION__. ": CURL executed params: URL:'$url',Header='$header',Cookie='$cookie',Referer='$referer',PostData='$postdata',HTTPHeaders='$httpheaders'", 0);
+  htz_say(__FUNCTION__. ": CURL executed params: URL:'$url',Header='$header',Cookie='$cookie',Referer='$referer',PostData='$postdata',HTTPHeaders=",0); 
   // validate && return data
   if ($httpcode == "200") {
       $ret=array($res,$newheaders);
@@ -166,7 +190,7 @@ function htz_curl($url=false, $header=false, $cookie=false, $referer=false, $pos
 function htz_validate_login($str) {
   // This function confirms successful login based on response HTML.
   global $htz_user;
-  if (!preg_match_all("/.*Logged in as:<\/span> $htz_user.*/",$str,$matches)) {
+  if (!preg_match_all("/.*Logged in as:.*/",$str,$matches)) {
       htz_say(__FUNCTION__. ": Couldn't find the line in response: 'Logged in as'",2);
   } else {
       htz_say(__FUNCTION__. ": Confirmed login to Hetzner as user $htz_user.",0); return true;
@@ -183,16 +207,26 @@ function htz_validate_dnspg($str,$domain,$domainkey) {
 function htz_validate_dnsup($str=false) {
   // This function validated DNS update response from Hetzner.
   // Example of what's received on successful update:
-  if (preg_match_all('/<blockquote id="msgbox" class="msgbox_success">/',$str,$matches)) { return true; }
+  if (preg_match_all('/The DNS entry will be updated now./',$str,$matches)) { return true; }
   return false;
 }
 
-function htz_getcookie($str) {
+function htz_getcookie($str,$scope=1) {
   // This function digs cookie set from response headers supplied and returns value to be used for future requests;
-  global $htz_cookie;
+ // scope 1 = only the first cookie
+ // scope all = all cookies
+  global $htz_cookie; $rawcookie="";
   if (preg_match_all("/Set-Cookie: .*;/",$str,$matches)) {
-      $rawcookie=$matches[0][0];
-      $cookie=preg_replace("/Set-Cookie: /", "", $rawcookie);
+      if ($scope == "all") {
+         foreach ($matches[0] as $cookpiece) {
+	     $cookpiece=preg_replace("/Set-Cookie: /", "", $cookpiece);
+	     $cookpiece=preg_replace("/; path=\/; secure;/", "", $cookpiece);
+	     $rawcookie=$rawcookie.'; '.$cookpiece;
+         }
+         $cookie=preg_replace("/^; /", "", $rawcookie).'; path=/; secure;';
+      } else if ($scope == 1) {
+	 $cookie=preg_replace("/Set-Cookie: /", "", $matches[0][0]);
+      }
       htz_say(__FUNCTION__. ": Cookie found: $cookie",0);
       return $cookie;
   } else {
@@ -414,40 +448,48 @@ foreach($htz_allowed_domains as $htz_domain => $htz_hosts) {
 //
 
 // if we have anything to update on Hetzner...
+
+function htz_clearcookies() {
+   global $htz_data_cookies;
+   fclose(fopen($htz_data_cookies,'w'));
+}
+
 if (!empty($htz_update_domains)) {
-    // login to hetzner with an informative hex cookie (we'll grab a valid one later)
-    $ex_login=htz_curl("$htz_url/login/check", true, "robot=6769746875623a6d622d302f6865747a6e65722d64796e646e73; path=/; secure; HttpOnly", "$htz_url/login", "user=$htz_user&password=$htz_pass");
-    // validate successful login from response $ex_login[0]
-    htz_validate_login($ex_login[0]);
-    // grab cookie from headers $ex_login[1])
-    $htz_cookie=htz_getcookie($ex_login[1]);
-    // iterate through domains we need to update at Hetzner.
-    foreach($htz_update_domains as $htz_domain => $htz_hosts) {
-            // let's grab the domain key :)
-            $htz_domain_key=array_shift($htz_hosts);
-            // grab the DNS page
-            $ex_zone=htz_curl("$htz_url/dns/update/id/$htz_domain_key", true, "$htz_cookie", "$htz_url/dns", false);
-            // ensure what we have is correct, die if not. $ex_zone[0] is data, [1] is headers for cookies.
-            htz_validate_dnspg($ex_zone[0],$htz_domain,$htz_domain_key);
-            // grab csrf from response.
-            $htz_csrf=htz_getcsrf($ex_zone[0],$htz_domain,$htz_domain_key);
-            // grab new cookie (just in case)
-            $htz_cookie=htz_getcookie($ex_zone[1]);
-            // grab zone data (txt) from response
-            $htz_zonedata=htz_getzonedata($ex_zone[0]);
-            // get an array ready for final list of updated hosts;
-            $htz_updatedhosts=array();
-            // Iterate through the hosts set for this domain and update IPs where appropriate.
-            foreach ($htz_hosts as $host) {
-               // dig out line for host from zone file.
-               $htz_zonehost=htz_getzonehost($htz_zonedata,$htz_domain,$htz_domain_key,$host);
-               // Check if we have a matching line.
-               // If not, that means there's either a typo, or this host is not yet present in the zone configuration at hetzner.
-               // We need the user to add a HOST IN A IP record manually first. We can update once it's there.
-               if (!$htz_zonehost) {
-                 htz_say("Host $host is not found in Hetzner DNS. You need to add this IN A record manually first, we won't be adding new lines to DNS configuration with this script.", 1);
-                 continue;
-               }
+   // kick cookies file :)
+   htz_clearcookies();
+   // kick the robots page
+   $ex_kick=htz_curl("$htz_url", true, true);
+   $htz_logincheck_loc=htz_getlocation($ex_kick[1]); // location has wonders for openid.
+   // kick login
+   $htz_loginurl=htz_getloginurl($htz_logincheck_loc,$ex_kick);
+   $ex_login=htz_curl($htz_loginurl, true, true, false, "_username=$htz_user&_password=$htz_pass");
+   // validate successful login from response $ex_login[0]
+   htz_validate_login($ex_login[0]);
+   // iterate through domains we need to update at Hetzner.
+   foreach($htz_update_domains as $htz_domain => $htz_hosts) {
+           // let's grab the domain key :)
+           $htz_domain_key=array_shift($htz_hosts);
+           // grab the DNS page
+           $ex_zone=htz_curl("$htz_url/dns/update/id/$htz_domain_key", true, true, "$htz_url/dns");
+           // ensure what we have is correct, die if not. $ex_zone[0] is data, [1] is headers for cookies.
+           htz_validate_dnspg($ex_zone[0],$htz_domain,$htz_domain_key);
+           // grab csrf from response.
+           $htz_csrf=htz_getcsrf($ex_zone[0],$htz_domain,$htz_domain_key);
+           // grab zone data (txt) from response
+           $htz_zonedata=htz_getzonedata($ex_zone[0]);
+           // get an array ready for final list of updated hosts;
+           $htz_updatedhosts=array();
+           // Iterate through the hosts set for this domain and update IPs where appropriate.
+           foreach ($htz_hosts as $host) {
+              // dig out line for host from zone file.
+              $htz_zonehost=htz_getzonehost($htz_zonedata,$htz_domain,$htz_domain_key,$host);
+              // Check if we have a matching line.
+              // If not, that means there's either a typo, or this host is not yet present in the zone configuration at hetzner.
+              // We need the user to add a HOST IN A IP record manually first. We can update once it's there.
+              if (!$htz_zonehost) {
+                htz_say("Host $host is not found in Hetzner DNS. You need to add this IN A record manually first, we won't be adding new lines to DNS configuration with this script.", 1);
+                continue;
+              }
                // grab IP from host line.
                $htz_zoneip=htz_getzonehostip($htz_zonehost);
                // Compare IPs and continue to next host should this be matching.
@@ -473,9 +515,7 @@ if (!empty($htz_update_domains)) {
             // Update hetzner DNS data when all the host specific changes have been amended.
             // can be done once per domain entry, no need to call this per host amended.
             // No additional validation is needed, replaced already existing data hetzner's own validation is sufficient).
-
-            $ex_submitzone=htz_curl("$htz_url/dns/update", true, "$htz_cookie", "$htz_url/dns",
-                                    "id=$htz_domain_key&_csrf_token=$htz_csrf&_=&zonefile=$htz_zonedata");
+            $ex_submitzone=htz_curl("$htz_url/dns/update", true, true, "$htz_url/dns", "id=$htz_domain_key&_csrf_token=$htz_csrf&_=&zonefile=$htz_zonedata");
 
             // Check response from Hetzner, warn if update has failed.
             if (!htz_validate_dnsup($ex_submitzone[0])) {
@@ -492,7 +532,7 @@ if (!empty($htz_update_domains)) {
            sleep(1);
     }
     // Logout.
-    $ex_logout=htz_curl("$htz_url/login/logout", true, "$htz_cookie", "$htz_url/");
+    $ex_logout=htz_curl("$htz_url/login/logout", true, true, "$htz_url/");
     // Save new IP after updating hosts (e.g. successful update should not trigger this until next IP update)
     htz_savenewip($ex_ip);
     // Send pushover message (messageconstruct)

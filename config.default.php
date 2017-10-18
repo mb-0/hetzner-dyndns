@@ -32,6 +32,8 @@ $htz_data=__DIR__."/data";
 $htz_data_ip="$htz_data/htz.ip.data";
 // __DNSID__ and __DOMAIN__ are replaced with actual values.
 $htz_data_zone="$htz_data/htz.zone-__DOMAIN__-__DNSID__.data";
+// cookies data file
+$htz_data_cookies="$htz_data/htz.cookies.data";
 
 // The following configuration allows you to set
 // multiple domains and hosts to be updated in a single run.
@@ -105,6 +107,5 @@ $htz_ntfy_push_prios="0";	// Priority for push messages
 $htz_url="https://robot.your-server.de";
 
 // User agent to use when executing hetzner calls with curl.
-$htz_usrag="Mozilla/5.0 (Macintosh; Intel Mac OS X 10_10_5) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/45.0.2454.78 Safari/537.36";
-
+$htz_usrag="Mozilla/5.0 (Macintosh; Intel Mac OS X 10_12_6) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/60.0.3112.113 Safari/537.36";
 ?>

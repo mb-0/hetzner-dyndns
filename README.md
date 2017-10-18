@@ -1,26 +1,26 @@
 # Hetzner-DynDNS
-Once configured properly, this script can act as a dynamic DNS service for domains managed by Hetzner A.G. (https://www.hetzner.de).
-It is possible to update multiple domains and multiple host entries with this tool at the same time.
+(Updated to follow UI changes at Hetzner).
 
-Using this would only make sense where both of the following items are true:
-- Your ISP is changing your IP address from time to time, but you want to access your computer remotely every once in a while.
+This tool allows you to push new IP addresses to a range of domains you have configured at Hetzner.de.
+Once configured, multiple domains and hosts can be updated in a single call.
+
+Using this would make sense when the following statements are true:
+- You have a dynamic IP at your ISP, but want to access your host.
 - You have domains operated & configured at Hetzner.
-
-# Motivation
-Changing IP addresses can be looked at as a necessary troll-getaway these days, I tend to like it. This (and cost obviously) stops me from upgrading my home network to business or paying extra for FIX IP.
-I'm paying for my domains already, not going to pay extra for a dynamic DNS service, and I don't have the time or the motivation to keep looking for what's actually free and when to register. This is how and why I ended up with this awfulness.
+- You've had enough of dyndns, no-ip and alike constanty looking for your  pocket.
 
 # Quick rundown of what's happening inside
-1. Grabs your WAN IP address (reported back by one of many whatismyip type services online).
-2. Maintains a local copy of your Zone file in the data directory (creates if doesn't exist, updates with new data, etc). This is the first point where your WAN IP is validated against.
-Using a local cache of your zone avoids hitting Hetzner every time you run this script.
-3. When a host is not found locally, or WAN IP differs from IP in cached zone, your credentials will be used to login to Hetzner, fetch the DNS zone file for each domain, and update configured host IP information with your actual WAN address.
+Unfortunately Hetzner doesn't provide a real API to their DNS Robot. The do provide an e-mail interface, but that comes with more limitation than a level of UI automation, so here goes.
+The following things happen when you run this:
+1. Grabbing your WAN IP address (reported back by one of many whatismyip type services; but you can use your own, of course).
+2. Maintains a local copy of your Zone file in the data directory. This serves as first point of WAN IP validation, and avoids hitting hetzner unnecessarily.
+3. When a host is not found locally, or WAN IP differs from IP in cached zone, a set of curl commends ensure that you login to hetzner's DNS robot (with your robot.your-server.de credentials), compare DNS zone files with your local copies, and update configured host IPs as required.
 4. When an update happens, zone cache files are updated per domain.
 
 # Prerequisites
 1. You need to see your domain(s) in Hetzner Robot (robot.your-server.de), Konsoleh won't work.
 2. Configuration will need your specific domain ID(s), you need to dig this out from the source here: https://robot.your-server.de/dns. Look for table onclick javascript code /dns/update/id/XXXXXX. You need to place the XXXXX (usually a 6-7 digit integer) to htz.config.php.
-3. PHP 5.6 (gentoo) only at this point (needs curl, ssl, filter compile flags).
+3. PHP 5.6 and 7.0 only at this point (needs curl, ssl, filter compile flags).
 4. You may want to set your DNS TTL to some low value, I'm using $TTL 300 (shame on me).
 
 # Configuration
@@ -48,11 +48,9 @@ From this point on, you should be able to run this commandline PHP, or via your 
 - Hetzner's two factor authentication will prevent this from achieving anything. You may want to keep that turned OFF.
 - Having multiple WAN interfaces can cause trouble.
 - Running this script from multiple machines for the same domain can lead to crap should IP change be synchronized.
-- Hetzner changes their web UI, this stops working (may take some time for me to up to latest).
-- PHP 5.6 only, I didn't have the chance to test with earkuer or newer versions.
-- Yeah I know the code is awful. But hey, this is a proto.
+- Hetzner changes their web UI, this stops working (like they did on Oct 16/17, 2017; it may take some time to update, test and push to this repo).
 - Should you run into validation failures reported by one of these functions: htz_validate_login, htz_validate_dnspg, htz_validate_dnsup, stop using this script until an update is released. This is likely caused by Hetzner changing their UI and proceeding with items in this script can cause damage.
-- It takes some time for Hetzner to register the update & show it via their website. Not waiting for this with this script, we assume Hetzner won't change / reject our submission after accepting our post.
+- It takes up to a minute for Hetzner to register the update & show it via their website. Not waiting for this with this script, we assume Hetzner won't change / reject our submission after accepting our post.
 
 # Legal
 - This is a prototype (:hankey:) fire & forget project.

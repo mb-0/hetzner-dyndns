@@ -190,8 +190,8 @@ function htz_curl($url=false, $header=false, $cookie=false, $referer=false, $pos
 function htz_validate_login($str) {
   // This function confirms successful login based on response HTML.
   global $htz_user;
-  if (!preg_match_all("/.*Logged in as:.*/",$str,$matches)) {
-      htz_say(__FUNCTION__. ": Couldn't find the line in response: 'Logged in as'",2);
+  if (!preg_match_all("/.*Welcome.*/",$str,$matches)) {
+      htz_say(__FUNCTION__. ": Couldn't find the line in response: 'Welcome'",2);
   } else {
       htz_say(__FUNCTION__. ": Confirmed login to Hetzner as user $htz_user.",0); return true;
   }

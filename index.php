@@ -234,17 +234,19 @@ function htz_getcookie($str,$scope=1) {
     return $htz_cookie;
   }
 }
-function htz_getcsrf($str=false,$domain,$domainkey) {
+function htz_getcsrf($str=false,$domain=false,$domainkey=false) {
   // This function digs out _csrf data from Hetzner response html.
-  // csrf (today) looks like a 32 chars long hash made of a-z0-9
-  // example: c101d43ab71a2b008f1fff7e882410b8
-  $doc = new DOMDocument();
+  // csrf (today, 2019-02-26) looks like a 43 chars long hash made of a-Z0-9_-
+  // example: T_5cB-fNljGLa6HdS5ZkloKi5vdM7EZOv_unH4UiI7X
+  $doc = new DOMDocument;
   @$doc->loadHTML($str);
-  $htz_csrfdata=$doc->getElementById('csrf_token');
-  $htz_csrf=$htz_csrfdata->getAttribute('value');
-  if (!preg_match_all("/[a-z0-9]/",$htz_csrf,$matches) && strlen($htz_csrf) == 32) {
+  $xpath = new DOMXpath($doc);
+  $val= $xpath->query('//input[@type="hidden" and @name = "_csrf_token"]/@value' );
+  $htz_csrf=$val[0]->nodeValue;
+
+  if (!preg_match_all("/[a-zA-Z0-9\_\-]/",$htz_csrf,$matches) && strlen($htz_csrf) == 43) {
       htz_say(__FUNCTION__. ": Interesting, the _csrf value ($htz_csrf) for $domain fails our validation.",1);
-      htz_say(__FUNCTION__. ": You may want to look up $htz_url/dns/update/id/$domainkey manually to see what's up.",1);
+      htz_say(__FUNCTION__. ": You may want to look up $htz_url or $htz_url/dns/update/id/$domainkey manually to see what's up.",1);
   }
   htz_say(__FUNCTION__. ": Have csrf value as $htz_csrf for /dns/update/id/$domainkey.",0);
   return $htz_csrf;
@@ -462,7 +464,10 @@ if (!empty($htz_update_domains)) {
    $htz_logincheck_loc=htz_getlocation($ex_kick[1]); // location has wonders for openid.
    // kick login
    $htz_loginurl=htz_getloginurl($htz_logincheck_loc,$ex_kick);
-   $ex_login=htz_curl($htz_loginurl, true, true, false, "_username=$htz_user&_password=$htz_pass");
+   // get csrf token from login kick
+   // debug print $ex_kick[0];
+   $htz_csrf=htz_getcsrf($ex_kick[0]);
+   $ex_login=htz_curl($htz_loginurl, true, true, false, "_username=$htz_user&_password=$htz_pass&_csrf_token=$htz_csrf");
    // validate successful login from response $ex_login[0]
    htz_validate_login($ex_login[0]);
    // iterate through domains we need to update at Hetzner.
